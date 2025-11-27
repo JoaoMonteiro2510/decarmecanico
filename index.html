@@ -43,44 +43,40 @@ input,textarea,select{width:100%;background:#2b2b2b;color:white;border:none;bord
 
 <script>
 /* ============================================
-   CONFIGURAÇÃO DO GITHUB
-   Coloque seu token abaixo (gere em: github.com/settings/tokens)
-   Permissões necessárias: repo (acesso total)
+   CONFIGURAÇÃO DO JSONBIN.IO
 ============================================ */
-const GITHUB_TOKEN = "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";
-const GITHUB_REPO = "JoaoMonteiro2510/decarmecanico";
-const GITHUB_FILE = "data.json";
-const GITHUB_BRANCH = "main";
-
-let currentSha = null; // SHA atual do arquivo para updates
+const JSONBIN_API_KEY = "$2a$10$BinDsBczYbpvVsvZ89ZpV.8MkYDo53QBbovIHXlYXCIzyMD46JGhO";
+let BIN_ID = null; // Será criado automaticamente na primeira vez
 
 /* ============================================
-   CARREGAR DADOS DO GITHUB
+   CARREGAR DADOS DO JSONBIN
 ============================================ */
 async function loadData() {
     try {
-        const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}?ref=${GITHUB_BRANCH}`;
-        const response = await fetch(url, {
+        // Primeiro, tenta carregar o BIN_ID salvo no localStorage
+        BIN_ID = localStorage.getItem("decar_bin_id");
+        
+        if (!BIN_ID) {
+            // Se não existe, retorna vazio (será criado ao salvar)
+            return [];
+        }
+        
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
             headers: {
-                "Authorization": `Bearer ${GITHUB_TOKEN}`,
-                "Accept": "application/vnd.github.v3+json"
+                "X-Master-Key": JSONBIN_API_KEY
             }
         });
         
         if (!response.ok) {
             if (response.status === 404) {
-                // Arquivo não existe ainda
+                localStorage.removeItem("decar_bin_id");
                 return [];
             }
             throw new Error(`Erro HTTP: ${response.status}`);
         }
         
         const data = await response.json();
-        currentSha = data.sha; // Guarda o SHA para updates
-        
-        // Decodifica o conteúdo base64
-        const content = atob(data.content);
-        return JSON.parse(content);
+        return data.record || [];
     } catch (error) {
         console.error("Erro ao carregar dados:", error);
         return [];
@@ -88,34 +84,30 @@ async function loadData() {
 }
 
 /* ============================================
-   SALVAR DADOS NO GITHUB
+   SALVAR DADOS NO JSONBIN
 ============================================ */
 async function saveData(newData) {
     try {
-        const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
+        let url, method;
         
-        // Codifica o conteúdo em base64
-        const content = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2))));
-        
-        const body = {
-            message: "Atualização de fichas - " + new Date().toLocaleString("pt-BR"),
-            content: content,
-            branch: GITHUB_BRANCH
-        };
-        
-        // Se o arquivo já existe, precisamos do SHA
-        if (currentSha) {
-            body.sha = currentSha;
+        if (BIN_ID) {
+            // Atualiza bin existente
+            url = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+            method = "PUT";
+        } else {
+            // Cria novo bin
+            url = "https://api.jsonbin.io/v3/b";
+            method = "POST";
         }
         
         const response = await fetch(url, {
-            method: "PUT",
+            method: method,
             headers: {
-                "Authorization": `Bearer ${GITHUB_TOKEN}`,
-                "Accept": "application/vnd.github.v3+json",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "X-Master-Key": JSONBIN_API_KEY,
+                "X-Bin-Name": "decar-fichas"
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(newData)
         });
         
         if (!response.ok) {
@@ -124,8 +116,15 @@ async function saveData(newData) {
         }
         
         const result = await response.json();
-        currentSha = result.content.sha; // Atualiza o SHA
-        console.log("Fichas salvas no GitHub!");
+        
+        // Se criou um novo bin, salva o ID
+        if (!BIN_ID && result.metadata && result.metadata.id) {
+            BIN_ID = result.metadata.id;
+            localStorage.setItem("decar_bin_id", BIN_ID);
+            console.log("Novo bin criado:", BIN_ID);
+        }
+        
+        console.log("Fichas salvas!");
     } catch (error) {
         console.error("Erro ao salvar:", error);
         alert("Erro ao salvar fichas: " + error.message);
