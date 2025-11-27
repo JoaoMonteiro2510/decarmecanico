@@ -73,7 +73,8 @@ async function saveData(newData) {
         method: "POST",
         headers: {
             "Accept": "application/vnd.github+json",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Authorization": "Bearer GH_TOKEN_AQUI"
         },
         body: JSON.stringify({
             event_type: "update-data",
@@ -84,6 +85,8 @@ async function saveData(newData) {
     });
 
     alert("Ficha salva no GitHub! Aguarde alguns segundos.");
+}
+
 }
 
 /* ============================================
