@@ -44,6 +44,53 @@ input,textarea,select{width:100%;background:#2b2b2b;color:white;border:none;bord
 </div>
 
 <script>
+/* ============================================
+   CONFIGURAÇÃO DO GITHUB
+============================================ */
+const repoOwner = "JoaoMonteiro2510";
+const repoName = "decarmecanico";
+const dataFile = "data.json";
+
+/* ============================================
+   CARREGAR DADOS DO GITHUB
+============================================ */
+async function loadData() {
+    const url = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/${dataFile}`;
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) return [];
+        return await response.json();
+    } catch (error) {
+        console.error("Erro ao carregar dados:", error);
+        return [];
+    }
+}
+
+/* ============================================
+   SALVAR DADOS NO GITHUB (REPOSITORY DISPATCH)
+============================================ */
+async function saveData(newData) {
+    await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/dispatches`, {
+        method: "POST",
+        headers: {
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            event_type: "update-data",
+            client_payload: {
+                data: JSON.stringify(newData)
+            }
+        })
+    });
+
+    alert("Ficha salva no GitHub! Aguarde alguns segundos.");
+}
+
+/* ============================================
+   FUNÇÕES DO SITE
+============================================ */
 
 function filtrar(){
  let termo=document.getElementById("search").value.toLowerCase();
@@ -62,40 +109,48 @@ function filtrar(){
 
 function renumerar(){
  document.querySelectorAll(".card").forEach((card,i)=>{
-   card.querySelector("h2").textContent="Ficha do Veículo #"+(i+1);
+   card.querySelector("h2").textContent = "Ficha do Veículo #" + (i+1);
  });
 }
 
-function saveAll(){
- const data=[];
+async function saveAll(){
+ const data = [];
  document.querySelectorAll('.card').forEach(card=>{
   data.push({
-    carro:card.querySelector('.carro').value,
-    placa:card.querySelector('.placa').value,
-    data:card.querySelector('.data').value,
-    cliente:card.querySelector('.cliente').value,
-    servico:card.querySelector('.servico').value,
-    valor:card.querySelector('.valor').value,
-    status:card.querySelector('.status').value
+    carro: card.querySelector('.carro').value,
+    placa: card.querySelector('.placa').value,
+    data: card.querySelector('.data').value,
+    cliente: card.querySelector('.cliente').value,
+    servico: card.querySelector('.servico').value,
+    valor: card.querySelector('.valor').value,
+    status: card.querySelector('.status').value
   });
  });
- localStorage.setItem("fichas_json",JSON.stringify(data));
+
+ saveData(data);
 }
 
-function loadAll(){
- let raw=localStorage.getItem("fichas_json");
- if(!raw)return;
- JSON.parse(raw).forEach(info=>addFicha(info));
+async function loadAll(){
+ const data = await loadData();
+ data.forEach(info => addFicha(info));
  renumerar();
 }
 
 function addFicha(info){
- if(!info) info={carro:"",placa:"",data:"",cliente:"",servico:"",valor:"",status:"não pago"};
+ if(!info) info = {
+   carro:"",
+   placa:"",
+   data:"",
+   cliente:"",
+   servico:"",
+   valor:"",
+   status:"não pago"
+ };
 
- let div=document.createElement("div");
- div.className="card";
+ let div = document.createElement("div");
+ div.className = "card";
 
- div.innerHTML=`
+ div.innerHTML = `
   <button class="del-btn">X</button>
   <h2>Ficha do Veículo</h2>
 
@@ -128,14 +183,30 @@ function addFicha(info){
 
  document.getElementById("fichas").appendChild(div);
 
- div.querySelector('.del-btn').onclick=function(){ div.remove(); renumerar(); saveAll(); };
- div.querySelector('.save-btn').onclick=function(){ saveAll(); renumerar(); };
+ div.querySelector('.del-btn').onclick = function(){
+   div.remove();
+   renumerar();
+   saveAll();
+ };
+
+ div.querySelector('.save-btn').onclick = function(){
+   saveAll();
+   renumerar();
+ };
 
  renumerar();
 }
 
-loadAll();
-</script>const repoOwner = "JoaoMonteiro2510";
+/* ============================================
+   QUANDO O SITE ABRIR → CARREGA DO GITHUB
+============================================ */
+window.onload = () => {
+  loadAll();
+};
+</script>
+
+ 
+ const repoOwner = "JoaoMonteiro2510";
 const repoName = "decarmecanico";
 const dataFile = "data.json";
 
