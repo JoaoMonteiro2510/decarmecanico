@@ -44,21 +44,43 @@ input,textarea,select{width:100%;background:#2b2b2b;color:white;border:none;bord
 <script>
 /* ============================================
    CONFIGURAÇÃO DO GITHUB
+   Coloque seu token abaixo (gere em: github.com/settings/tokens)
+   Permissões necessárias: repo (acesso total)
 ============================================ */
-const repoOwner = "JoaoMonteiro2510";
-const repoName = "decarmecanico";
-const dataFile = "data.json";
+const GITHUB_TOKEN = "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";
+const GITHUB_REPO = "JoaoMonteiro2510/decarmecanico";
+const GITHUB_FILE = "data.json";
+const GITHUB_BRANCH = "main";
+
+let currentSha = null; // SHA atual do arquivo para updates
 
 /* ============================================
    CARREGAR DADOS DO GITHUB
 ============================================ */
 async function loadData() {
-    const url = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/${dataFile}`;
-
     try {
-        const response = await fetch(url);
-        if (!response.ok) return [];
-        return await response.json();
+        const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}?ref=${GITHUB_BRANCH}`;
+        const response = await fetch(url, {
+            headers: {
+                "Authorization": `Bearer ${GITHUB_TOKEN}`,
+                "Accept": "application/vnd.github.v3+json"
+            }
+        });
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                // Arquivo não existe ainda
+                return [];
+            }
+            throw new Error(`Erro HTTP: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        currentSha = data.sha; // Guarda o SHA para updates
+        
+        // Decodifica o conteúdo base64
+        const content = atob(data.content);
+        return JSON.parse(content);
     } catch (error) {
         console.error("Erro ao carregar dados:", error);
         return [];
@@ -66,25 +88,48 @@ async function loadData() {
 }
 
 /* ============================================
-   SALVAR DADOS NO GITHUB (REPOSITORY DISPATCH)
+   SALVAR DADOS NO GITHUB
 ============================================ */
 async function saveData(newData) {
-    await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/dispatches`, {
-        method: "POST",
-        headers: {
-            "Accept": "application/vnd.github+json",
-            "Content-Type": "application/json",
-            "Authorization": "Bearer GH_TOKEN"
-        },
-        body: JSON.stringify({
-            event_type: "update-data",
-            client_payload: {
-                data: JSON.stringify(newData)
-            }
-        })
-    });
-
-    alert("Ficha salva no GitHub! Aguarde alguns segundos.");
+    try {
+        const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
+        
+        // Codifica o conteúdo em base64
+        const content = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2))));
+        
+        const body = {
+            message: "Atualização de fichas - " + new Date().toLocaleString("pt-BR"),
+            content: content,
+            branch: GITHUB_BRANCH
+        };
+        
+        // Se o arquivo já existe, precisamos do SHA
+        if (currentSha) {
+            body.sha = currentSha;
+        }
+        
+        const response = await fetch(url, {
+            method: "PUT",
+            headers: {
+                "Authorization": `Bearer ${GITHUB_TOKEN}`,
+                "Accept": "application/vnd.github.v3+json",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(body)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Erro HTTP: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        currentSha = result.content.sha; // Atualiza o SHA
+        console.log("Fichas salvas no GitHub!");
+    } catch (error) {
+        console.error("Erro ao salvar:", error);
+        alert("Erro ao salvar fichas: " + error.message);
+    }
 }
 
 /* ============================================
