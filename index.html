@@ -74,7 +74,7 @@ async function saveData(newData) {
         headers: {
             "Accept": "application/vnd.github+json",
             "Content-Type": "application/json",
-            "Authorization": "Bearer GH_TOKEN_AQUI"
+            "Authorization": "Bearer GH_TOKEN"
         },
         body: JSON.stringify({
             event_type: "update-data",
@@ -85,8 +85,6 @@ async function saveData(newData) {
     });
 
     alert("Ficha salva no GitHub! Aguarde alguns segundos.");
-}
-
 }
 
 /* ============================================
@@ -198,9 +196,6 @@ function addFicha(info){
  renumerar();
 }
 
-/* ============================================
-   QUANDO O SITE ABRIR → CARREGA DO GITHUB
-============================================ */
 window.onload = () => {
   loadAll();
 };
