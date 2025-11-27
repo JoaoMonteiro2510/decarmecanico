@@ -135,6 +135,36 @@ function addFicha(info){
 }
 
 loadAll();
-</script>
+</script>const repoOwner = "JoaoMonteiro2510";
+const repoName = "decarmecanico";
+const dataFile = "data.json";
+
+// 🔹 Carregar fichas do GitHub
+async function loadData() {
+    const url = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/${dataFile}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    return data;
+}
+
+// 🔹 Enviar alterações para o GitHub (via Repository Dispatch)
+async function saveData(newData) {
+    await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/dispatches`, {
+        method: "POST",
+        headers: {
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            event_type: "update-data",
+            client_payload: {
+                data: JSON.stringify(newData)
+            }
+        })
+    });
+
+    alert("As fichas foram enviadas! Aguarde alguns segundos e recarregue a página.");
+}
+
 </body>
 </html>
